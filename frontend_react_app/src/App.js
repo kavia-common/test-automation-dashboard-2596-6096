@@ -17,6 +17,7 @@ import Execute from "./pages/Execute";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Health from "./pages/Health";
+import TestScriptGeneration from "./pages/TestScriptGeneration";
 
 // Auth Pages
 import Login from "./pages/auth/Login";
@@ -49,6 +50,7 @@ function App() {
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/health" element={<Health />} />
+                      <Route path="/generate-script" element={<TestScriptGeneration />} />
                     </Route>
                   </Routes>
                 </div>

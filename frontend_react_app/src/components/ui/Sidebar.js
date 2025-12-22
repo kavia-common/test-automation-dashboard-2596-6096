@@ -21,6 +21,7 @@ export default function Sidebar() {
         <LinkItem to="/" label="Home" />
         <LinkItem to="/requirements" label="Refine Requirement" />
         <LinkItem to="/test-generation" label="Generate Test Cases" />
+        <LinkItem to="/generate-script" label="Generate Test Script" />
         <LinkItem to="/execute" label="Execute Tests" />
         <LinkItem to="/reports" label="Reports" />
         <LinkItem to="/settings" label="Settings" />
