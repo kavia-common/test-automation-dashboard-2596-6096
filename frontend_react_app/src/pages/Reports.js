@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader, CardBody } from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import toast from "react-hot-toast";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // PUBLIC_INTERFACE
 export default function Reports() {
@@ -10,6 +12,7 @@ export default function Reports() {
   const [status, setStatus] = useState("idle"); // idle | running | completed | cancelled
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [exporting, setExporting] = useState(false); // disable buttons during export
   const timerRef = useRef(null);
   const logBoxRef = useRef(null);
 
@@ -98,18 +101,148 @@ export default function Reports() {
     }
   }, [status, progress]);
 
-  const exportJSON = () => {
-    if (!summary) return;
-    const data = { summary, logs };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `report-${ts}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Report exported");
+  const exportJSON = async () => {
+    if (!summary || exporting) return;
+    try {
+      setExporting(true);
+      const data = { summary, logs };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      a.download = `report-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report exported (JSON)");
+    } catch (e) {
+      toast.error("Failed to export JSON");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Generate CSV with two sections: metrics and logs
+  const exportCSV = async () => {
+    if (!summary || exporting) return;
+    try {
+      setExporting(true);
+      const lines = [];
+      // Metrics
+      lines.push("metric,value");
+      lines.push(`Total,${summary.total}`);
+      lines.push(`Pass,${summary.pass}`);
+      lines.push(`Fail,${summary.fail}`);
+      lines.push(`Error,${summary.error}`);
+      if (summary.generatedAt) {
+        lines.push(`Generated At,${new Date(summary.generatedAt).toLocaleString()}`);
+      }
+      // spacer
+      lines.push("");
+      // Logs
+      if (logs && logs.length > 0) {
+        lines.push("timestamp,message");
+        // logs are already "[time] message", attempt to parse
+        for (const line of logs) {
+          const m = line.match(/^\[(.*?)\]\s*(.*)$/);
+          if (m) {
+            // escape CSV fields
+            const ts = `"${m[1].replace(/"/g, '""')}"`;
+            const msg = `"${m[2].replace(/"/g, '""')}"`;
+            lines.push(`${ts},${msg}`);
+          } else {
+            const msg = `"${line.replace(/"/g, '""')}"`;
+            lines.push(`"",${msg}`);
+          }
+        }
+      }
+      const csv = lines.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "report.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report exported (CSV)");
+    } catch (e) {
+      toast.error("Failed to export CSV");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Generate a simple one-page PDF with title, metrics table, and first N log lines (monospace)
+  const exportPDF = async () => {
+    if (!summary || exporting) return;
+    try {
+      setExporting(true);
+      const doc = new jsPDF({ unit: "pt", format: "a4" }); // 72pt = 1in; A4 portrait
+      const margin = 40;
+      let y = margin;
+
+      // Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Test Report", margin, y);
+      y += 10;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const genAt = summary.generatedAt ? new Date(summary.generatedAt).toLocaleString() : new Date().toLocaleString();
+      doc.text(`Generated at: ${genAt}`, margin, y);
+      y += 20;
+
+      // Metrics table
+      const tableBody = [
+        ["Total", String(summary.total)],
+        ["Pass", String(summary.pass)],
+        ["Fail", String(summary.fail)],
+        ["Error", String(summary.error)],
+      ];
+      // Use autotable
+      doc.autoTable({
+        startY: y,
+        head: [["Metric", "Value"]],
+        body: tableBody,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [30, 58, 138], halign: "left" }, // navy
+        theme: "grid",
+        margin: { left: margin, right: margin },
+      });
+      y = doc.lastAutoTable.finalY + 16;
+
+      // Logs section
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Logs (first 100 lines)", margin, y);
+      y += 12;
+      doc.setFont("courier", "normal"); // monospace for logs
+      doc.setFontSize(9);
+      const maxLines = 100;
+      const selected = (logs || []).slice(0, maxLines);
+      // Wrap lines to page width
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const usableWidth = pageWidth - margin * 2;
+      let currentY = y;
+      for (const line of selected) {
+        const wrapped = doc.splitTextToSize(line, usableWidth);
+        for (const piece of wrapped) {
+          if (currentY > doc.internal.pageSize.getHeight() - margin) {
+            doc.addPage();
+            currentY = margin;
+          }
+          doc.text(piece, margin, currentY);
+          currentY += 12;
+        }
+      }
+
+      doc.save("report.pdf");
+      toast.success("Report exported (PDF)");
+    } catch (e) {
+      toast.error("Failed to export PDF");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -127,9 +260,18 @@ export default function Reports() {
             <Button variant="secondary" onClick={reset} disabled={status === "running" && progress < 100}>
               Reset
             </Button>
-            <Button variant="ghost" onClick={exportJSON} disabled={!summary}>
-              Export
-            </Button>
+            {/* Export controls: JSON, CSV, PDF */}
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={exportJSON} disabled={!summary || exporting}>
+                {exporting ? "Exporting..." : "Export JSON"}
+              </Button>
+              <Button variant="ghost" onClick={exportCSV} disabled={!summary || exporting}>
+                {exporting ? "Exporting..." : "Export CSV"}
+              </Button>
+              <Button variant="ghost" onClick={exportPDF} disabled={!summary || exporting}>
+                {exporting ? "Exporting..." : "Export PDF"}
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
