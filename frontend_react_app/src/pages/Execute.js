@@ -1,96 +1,139 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getConfig } from "../config";
 import { Card, CardHeader, CardBody } from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import toast from "react-hot-toast";
 
-const cfg = getConfig();
-
+// PUBLIC_INTERFACE
 export default function Execute() {
-  const [suite, setSuite] = useState("regression");
-  const [env, setEnv] = useState("staging");
-  const [queue, setQueue] = useState([]);
-  const idRef = useRef(1);
+  /** Execute Test Script page: simulate run with progress and stream logs. */
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("idle"); // idle | running | cancelled | completed
+  const [logs, setLogs] = useState([]);
+  const timerRef = useRef(null);
+  const logBoxRef = useRef(null);
 
-  const startJob = async () => {
-    const id = idRef.current++;
-    const job = { id, suite, env, status: "queued", progress: 0, logs: [] };
-    setQueue(q => [job, ...q]);
-    toast.success("Job queued");
-
-    if (cfg.REACT_APP_BACKEND_URL) {
-      try {
-        await fetch(`${cfg.REACT_APP_BACKEND_URL}/execute`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ suite, env })
-        });
-      } catch {
-        toast.error("Backend execution failed; continuing mock");
-      }
-    }
-
-    // Mock progress
-    let i = 0;
-    const interval = setInterval(() => {
-      i += 10;
-      setQueue(q => q.map(j => j.id === id ? {
-        ...j,
-        status: i >= 100 ? "completed" : "running",
-        progress: Math.min(i, 100),
-        logs: [...j.logs, `Progress ${i}%`]
-      } : j));
-      if (i >= 100) {
-        clearInterval(interval);
-        toast.success("Job completed");
-      }
-    }, 500);
+  const appendLog = (line) => {
+    setLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ${line}`]);
   };
 
-  useEffect(() => { /* keyboard accessibility */ }, []);
+  const startRun = () => {
+    if (status === "running") return;
+    setLogs([]);
+    setProgress(0);
+    setStatus("running");
+    appendLog("Starting Execute Script run...");
+    // Simulate progress with variable increments
+    timerRef.current = setInterval(() => {
+      setProgress((p) => {
+        const inc = Math.max(2, Math.round(Math.random() * 12));
+        const next = Math.min(p + inc, 100);
+        appendLog(`Progress advanced to ${next}%`);
+        return next;
+      });
+    }, 450);
+  };
+
+  const cancelRun = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setStatus("cancelled");
+    appendLog("Run cancelled by user.");
+    toast.error("Execution cancelled");
+  };
+
+  const resetRun = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setProgress(0);
+    setLogs([]);
+    setStatus("idle");
+  };
+
+  // Auto-complete handling
+  useEffect(() => {
+    if (status === "running" && progress >= 100) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      setStatus("completed");
+      appendLog("Execute Script run completed successfully.");
+      toast.success("Execute Script completed");
+    }
+  }, [progress, status]);
+
+  // Auto scroll logs
+  useEffect(() => {
+    if (logBoxRef.current) {
+      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const statusText = () => {
+    switch (status) {
+      case "running":
+        return `Running... ${progress}%`;
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
+      default:
+        return "Idle";
+    }
+  };
 
   return (
     <Card>
-      <CardHeader>Execute Tests</CardHeader>
+      <CardHeader>Execute Test Script</CardHeader>
       <CardBody>
-        <div className="grid md:grid-cols-4 gap-3">
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <Button onClick={startRun} disabled={status === "running"}>
+              {status === "running" ? "Running..." : "Run Execute Script"}
+            </Button>
+            <Button variant="ghost" onClick={cancelRun} disabled={status !== "running"}>
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={resetRun}
+              disabled={status === "running" && progress < 100}
+            >
+              Reset
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="w-full bg-gray-200 h-3 rounded" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+              <div
+                className="bg-primary h-3 rounded transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-sm text-gray-700">{statusText()}</div>
+          </div>
+
           <div>
-            <label>Suite</label>
-            <select className="w-full mt-1" value={suite} onChange={e=>setSuite(e.target.value)}>
-              <option value="smoke">Smoke</option>
-              <option value="regression">Regression</option>
-              <option value="e2e">E2E</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Execution Logs</label>
+            <textarea
+              readOnly
+              rows={10}
+              value={logs.join("\n")}
+              className="w-full font-mono text-xs bg-gray-50"
+              aria-label="Execute Script logs"
+              ref={logBoxRef}
+              style={{ whiteSpace: "pre", overflow: "auto" }}
+            />
           </div>
-          <div>
-            <label>Environment</label>
-            <select className="w-full mt-1" value={env} onChange={e=>setEnv(e.target.value)}>
-              <option value="dev">Dev</option>
-              <option value="staging">Staging</option>
-              <option value="prod">Prod</option>
-            </select>
+
+          <div className="text-xs text-gray-500">
+            Uses client-side simulation. Styled with Corporate Navy theme.
           </div>
-          <div className="flex items-end">
-            <Button onClick={startJob}>Start</Button>
-          </div>
-        </div>
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Execution Queue</h3>
-          <ul className="space-y-2" aria-label="Execution queue">
-            {queue.map(j => (
-              <li key={j.id} className="card p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">#{j.id} - {j.suite} on {j.env}</div>
-                  <div className="text-sm">{j.status} - {j.progress}%</div>
-                </div>
-                <div className="w-full bg-gray-200 h-2 rounded mt-2">
-                  <div className="bg-primary h-2 rounded" style={{ width: `${j.progress}%` }}></div>
-                </div>
-                <pre className="text-xs bg-gray-50 p-2 rounded mt-2 max-h-32 overflow-auto">{j.logs.join("\n")}</pre>
-              </li>
-            ))}
-            {queue.length === 0 && <li className="text-gray-500">No jobs yet</li>}
-          </ul>
         </div>
       </CardBody>
     </Card>
