@@ -19,8 +19,8 @@ export default function Sidebar() {
       <div className="text-xs uppercase text-gray-500 px-2 pb-2">Navigation</div>
       <div className="space-y-1">
         <LinkItem to="/" label="Home" />
-        <LinkItem to="/requirements" label="Requirements" />
-        <LinkItem to="/test-generation" label="Test Generation" />
+        <LinkItem to="/requirements" label="Refine Requirement" />
+        <LinkItem to="/test-generation" label="Generate Test Cases" />
         <LinkItem to="/execute" label="Execute Tests" />
         <LinkItem to="/reports" label="Reports" />
         <LinkItem to="/settings" label="Settings" />

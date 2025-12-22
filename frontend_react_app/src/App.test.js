@@ -28,7 +28,7 @@ test("StorageService can list and upload in mock mode", async () => {
   expect(Array.isArray(before)).toBe(true);
 });
 
-// Sidebar has core links
+ // Sidebar has core links
 test("Sidebar shows navigation links", () => {
   render(
     <MemoryRouter>
@@ -36,6 +36,6 @@ test("Sidebar shows navigation links", () => {
     </MemoryRouter>
   );
   expect(screen.getByText("Home")).toBeInTheDocument();
-  expect(screen.getByText("Requirements")).toBeInTheDocument();
-  expect(screen.getByText("Test Generation")).toBeInTheDocument();
+  expect(screen.getByText("Refine Requirement")).toBeInTheDocument();
+  expect(screen.getByText("Generate Test Cases")).toBeInTheDocument();
 });
