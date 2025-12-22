@@ -154,25 +154,44 @@ export default function Reports() {
 
           {summary && (
             <div className="mt-2">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="card p-3">
-                  <div className="text-xs text-gray-500">Total Cases</div>
-                  <div className="text-2xl font-bold text-text">{summary.total}</div>
+              {/* Horizontal stat bar: mobile 1x1, tablet 2x2, desktop 1x4 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Total */}
+                <div className="card p-3 border-l-4 border-primary">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Total Cases</div>
+                    <span className="h-2 w-2 rounded-full bg-primary/80" aria-hidden />
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-text">{summary.total}</div>
                 </div>
-                <div className="card p-3">
-                  <div className="text-xs text-gray-500">Pass</div>
-                  <div className="text-2xl font-bold text-success">{summary.pass}</div>
+                {/* Pass */}
+                <div className="card p-3 border-l-4 border-success">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Pass</div>
+                    <span className="h-2 w-2 rounded-full bg-success/80" aria-hidden />
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-success">{summary.pass}</div>
                 </div>
-                <div className="card p-3">
-                  <div className="text-xs text-gray-500">Fail</div>
-                  <div className="text-2xl font-bold text-error">{summary.fail}</div>
+                {/* Fail */}
+                <div className="card p-3 border-l-4 border-error">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Fail</div>
+                    <span className="h-2 w-2 rounded-full bg-error/80" aria-hidden />
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-error">{summary.fail}</div>
                 </div>
-                <div className="card p-3">
-                  <div className="text-xs text-gray-500">Error</div>
-                  <div className="text-2xl font-bold text-secondary">{summary.error}</div>
+                {/* Error */}
+                <div className="card p-3 border-l-4 border-secondary">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Error</div>
+                    <span className="h-2 w-2 rounded-full bg-secondary/80" aria-hidden />
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-secondary">{summary.error}</div>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 mt-2">Generated at: {new Date(summary.generatedAt).toLocaleString()}</div>
+              <div className="text-xs text-gray-500 mt-2">
+                Generated at: {new Date(summary.generatedAt).toLocaleString()}
+              </div>
             </div>
           )}
 
